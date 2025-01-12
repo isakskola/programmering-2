@@ -8,8 +8,8 @@ window = pygame.display.set_mode((width, height))
 pygame.display.set_caption("Pong")
 
 WHITE = (255, 255, 255)
-RED = (255, 0, 0)
-BLUE = (0, 0, 255)
+RED = (171, 58, 66)
+LIGHTRED = (173, 71, 78)
 
 font = pygame.font.Font(None, 74)
 
@@ -63,6 +63,8 @@ def main():
     score1 = 0
     score2 = 0
 
+    trail_positions = []
+
     running = True
     while running:
         for event in pygame.event.get():
@@ -101,11 +103,25 @@ def main():
         if ball.x - ball.r <= 0:
             score2 += 1
             ball.reset()
+            trail_positions.clear()
         elif ball.x + ball.r >= width:
             score1 += 1
             ball.reset()
+            trail_positions.clear()
 
-        window.fill((0, 0, 0))
+        window.fill((40, 40, 41))
+
+        trail_positions.append((ball.x, ball.y))
+        if len(trail_positions) > 10:
+            trail_positions.pop(0)
+
+        for i, pos in enumerate(trail_positions):
+            alpha = int(255 * (i + 1) / len(trail_positions))
+            trail_color = (*LIGHTRED, alpha)
+            trail_surface = pygame.Surface((ball.r * 2, ball.r * 2), pygame.SRCALPHA)
+            pygame.draw.circle(trail_surface, trail_color, (ball.r, ball.r), ball.r)
+            window.blit(trail_surface, (pos[0] - ball.r, pos[1] - ball.r))
+
         ball.draw(window)
         paddle1.draw(window)
         paddle2.draw(window)
