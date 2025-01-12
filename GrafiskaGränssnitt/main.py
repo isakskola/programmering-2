@@ -11,6 +11,8 @@ WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 BLUE = (0, 0, 255)
 
+font = pygame.font.Font(None, 74)
+
 class Paddle:
     def __init__(self, x, y):
         self.x = x
@@ -58,6 +60,9 @@ def main():
     paddle1 = Paddle(30, height // 2 - 50)
     paddle2 = Paddle(width - 50, height // 2 - 50)
 
+    score1 = 0
+    score2 = 0
+
     running = True
     while running:
         for event in pygame.event.get():
@@ -84,24 +89,31 @@ def main():
         paddle2.move()
 
         if (paddle1.x < ball.x - ball.r < paddle1.x + paddle1.width and
-            paddle1.y < ball.y + ball.r and ball.y - ball.r < paddle1.y + paddle1.height):
+            paddle1.y < ball.y < paddle1.y + paddle1.height):
             ball.vx = -ball.vx
             ball.x = paddle1.x + paddle1.width + ball.r
 
         if (paddle2.x < ball.x + ball.r < paddle2.x + paddle2.width and
-            paddle2.y < ball.y + ball.r and ball.y - ball.r < paddle2.y + paddle2.height):
+            paddle2.y < ball.y < paddle2.y + paddle2.height):
             ball.vx = -ball.vx
             ball.x = paddle2.x - ball.r
 
-        if ball.x - ball.r <= 0 or ball.x + ball.r >= width:
+        if ball.x - ball.r <= 0:
+            score2 += 1
+            ball.reset()
+        elif ball.x + ball.r >= width:
+            score1 += 1
             ball.reset()
 
         window.fill((0, 0, 0))
         ball.draw(window)
         paddle1.draw(window)
         paddle2.draw(window)
-        pygame.display.flip()
 
+        score_text = font.render(f"{score1} - {score2}", True, WHITE)
+        window.blit(score_text, (width // 2 - score_text.get_width() // 2, 10))
+
+        pygame.display.flip()
         clock.tick(60)
 
     pygame.quit()
