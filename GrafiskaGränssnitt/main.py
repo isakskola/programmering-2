@@ -36,13 +36,13 @@ class Paddle:
         pygame.draw.rect(surface, self.c, (self.x, self.y, self.width, self.height))
 
 class Ball:
-    def __init__(self, x, y, velX, velY, r=10, color=RED):
+    def __init__(self, x, y, velX, velY):
         self.x = x
         self.y = y
-        self.r = r
+        self.r = 10
         self.vx = velX
         self.vy = velY
-        self.c = color
+        self.c = WHITE
 
     def update(self):
         self.x += self.vx
@@ -60,36 +60,76 @@ class Ball:
         self.vx = random.choice([-8, 8])
         self.vy = random.choice([-8, 8])
 
-class Explosion:
-    def __init__(self, x, y, winnerColor):
+class Particle:
+    def __init__(self, x, y, velX, velY, radius, color):
         self.x = x
         self.y = y
-        self.winner = winnerColor
-        self.particles = []
+        self.r = radius
+        self.vx = velX
+        self.vy = velY
+        self.c = color
 
-    def create(self):
-        for i in range(10):
-            if self.winner == 'red':
-                self.particles.append(Ball(
-                    self.x,
-                    self.y,
-                    random.randint(5, 1),
-                    random.randint(-8, 8),
-                    random.randint(1, 3),
-                    random.choice(REDFIRE)))
-            elif self.winner == 'blue':
-                self.particles.append(Ball(
-                    self.x,
-                    self.y,
-                    random.randint(-5, -1),
-                    random.randint(-8, 8),
-                    random.randint(1, 3),
-                    random.choice(BLUEFIRE)))
+    def update(self):
+        self.x += self.vx
+        self.y += self.vy
+        if self.r > 0.1:
+            self.r -= 0.2
 
     def draw(self, surface):
+        self.update()
+        if self.r > 0.1:
+            pygame.draw.circle(surface, self.c, (self.x, self.y), int(self.r))
+
+class Explosion:
+    def __init__(self, x, y, color):
+        self.x = x
+        self.y = y
+        self.c = color
+        self.particles = []
+        self.create()
+
+    def create(self):
+        for i in range(100):
+            if self.c == 'red':
+                self.particles.append(Particle(
+                    self.x,
+                    self.y,
+                    random.randint(1, 7),
+                    random.randint(-8, 8),
+                    random.randint(3, 6),
+                    random.choice(REDFIRE)))
+            elif self.c == 'blue':
+                self.particles.append(Particle(
+                    self.x,
+                    self.y,
+                    random.randint(-7, -1),
+                    random.randint(-8, 8),
+                    random.randint(3, 6),
+                    random.choice(BLUEFIRE)))
+            elif self.c == 'bottom':
+                self.particles.append(Particle(
+                    self.x,
+                    self.y,
+                    random.randint(-5, 5),
+                    random.randint(-4, -1),
+                    random.randint(2, 4),
+                    WHITE))
+            elif self.c == 'top':
+                self.particles.append(Particle(
+                    self.x,
+                    self.y,
+                    random.randint(-5, 5),
+                    random.randint(1, 4),
+                    random.randint(2, 4),
+                    WHITE))
+
+    def update(self):
+        self.particles = [p for p in self.particles if p.r > 0.1]
+        
+    def draw(self, surface):
+        self.update()
         for particle in self.particles:
             particle.draw(surface)
-
 
 def main():
     clock = pygame.time.Clock()
@@ -101,7 +141,7 @@ def main():
     score2 = 0
 
     trailPositions = []
-    explosion = []
+    explosions = []
 
     running = True
     while running:
@@ -135,14 +175,12 @@ def main():
             ball.x = paddle2.x - ball.r
 
         if ball.x - ball.r <= 0:
-            explosion.append([Explosion(ball.x, ball.y, 'red'), score1 + score2])
-            explosion[-1].create()
+            explosions.append(Explosion(ball.x - ball.r, ball.y, 'red'))
             score2 += 1
             ball.reset()
             trailPositions.clear()
         elif ball.x + ball.r >= width:
-            explosion.append([Explosion(ball.x, ball.y, 'blue'), score1 + score2])
-            explosion[-1].create()
+            explosions.append(Explosion(ball.x + ball.r, ball.y, 'blue'))
             score1 += 1
             ball.reset()
             trailPositions.clear()
@@ -150,21 +188,28 @@ def main():
         window.fill((40, 40, 41))
 
         trailPositions.append((ball.x, ball.y))
-        if len(trailPositions) > 10:
+        if len(trailPositions) > 5:
             trailPositions.pop(0)
 
         for i, pos in enumerate(trailPositions):
-            alpha = int(255 * (i + 1) / len(trailPositions))
-            trail_color = (*LIGHTRED, alpha)
+            alpha = int(128 * (i + 1) / len(trailPositions))
+            trail_color = (*WHITE, alpha)
             trail_surface = pygame.Surface((ball.r * 2, ball.r * 2), pygame.SRCALPHA)
             pygame.draw.circle(trail_surface, trail_color, (ball.r, ball.r), ball.r)
             window.blit(trail_surface, (pos[0] - ball.r, pos[1] - ball.r))
 
-        for expl in explosion:
-            expl[0].draw(window)
+        if ball.y + ball.r >= height:
+            explosions.append(Explosion(ball.x, ball.y + ball.r, 'bottom'))
+        elif ball.y - ball.r <= 0:
+            explosions.append(Explosion(ball.x, ball.y - ball.r, 'top'))
+
+        for explosion in explosions:
+            explosion.draw(window)
         ball.draw(window)
         paddle1.draw(window)
         paddle2.draw(window)
+
+        explosions = [explosion for explosion in explosions if explosion.particles]
 
         score_text = font.render(f"{score1} - {score2}", True, WHITE)
         window.blit(score_text, (width // 2 - score_text.get_width() // 2, 10))
