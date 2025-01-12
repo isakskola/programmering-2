@@ -89,7 +89,7 @@ class Explosion:
         self.create()
 
     def create(self):
-        for i in range(100):
+        for i in range(75):
             if self.c == 'red':
                 self.particles.append(Particle(
                     self.x,
@@ -211,8 +211,13 @@ def main():
 
         explosions = [explosion for explosion in explosions if explosion.particles]
 
-        score_text = font.render(f"{score1} - {score2}", True, WHITE)
-        window.blit(score_text, (width // 2 - score_text.get_width() // 2, 10))
+        score_text1 = font.render(f"{score1}", True, (68,126,190))
+        score_text2 = font.render(f"{score2}", True, (211,71,62))
+        dash_text = font.render("-", True, WHITE)
+        
+        window.blit(score_text1, (width // 2 - score_text1.get_width() - 60, 10))
+        window.blit(dash_text, (width // 2 - dash_text.get_width() // 2, 10))
+        window.blit(score_text2, (width // 2 + 60, 10))
 
         pygame.display.flip()
         clock.tick(60)
