@@ -13,7 +13,7 @@ LIGHTRED = (173, 71, 78)
 REDFIRE = [(250, 192, 0), (255, 117, 0), (252, 100, 0), (215, 53, 2), (182, 34, 3), (128, 17, 0)]
 BLUEFIRE = [(48, 154, 241), (102, 190, 249), (183, 232, 235), (156, 222, 235), (17, 101, 193), (4, 63, 152)]
 
-font = pygame.font.Font('GrafiskaGränssnitt\Font\slkscre.ttf', 74)
+font = pygame.font.Font(r'GrafiskaGränssnitt\Font\slkscre.ttf', 74)
 
 class Paddle:
     def __init__(self, x, y, color):
@@ -26,9 +26,9 @@ class Paddle:
 
     def update(self):
         self.y += self.vy
-        if self.y < 0:
+        if self.y < 0: # Håller Paddle inom spel ramarna
             self.y = 0
-        if self.y + self.height > height:
+        elif self.y + self.height > height:
             self.y = height - self.height
 
     def draw(self, surface):
@@ -72,12 +72,12 @@ class Particle:
     def update(self):
         self.x += self.vx
         self.y += self.vy
-        if self.r > 0.1:
+        if self.r > 0.1: # Minskar partiklarnas radius varje frame
             self.r -= 0.2
 
     def draw(self, surface):
         self.update()
-        if self.r > 0.1:
+        if self.r > 0.1: # Ritar endast partiklar som har en radius > 0.1
             pygame.draw.circle(surface, self.c, (self.x, self.y), int(self.r))
 
 class Explosion:
@@ -88,7 +88,7 @@ class Explosion:
         self.particles = []
         self.create()
 
-    def create(self):
+    def create(self): # Skapar alla partikel object i en explosion
         for i in range(75):
             if self.c == 'red':
                 self.particles.append(Particle(
@@ -124,7 +124,7 @@ class Explosion:
                     WHITE))
 
     def update(self):
-        self.particles = [p for p in self.particles if p.r > 0.1]
+        self.particles = [p for p in self.particles if p.r > 0.1] # Tömmer listan på partiklar som är mindre än radius = 0.1
         
     def draw(self, surface):
         self.update()
@@ -133,10 +133,12 @@ class Explosion:
 
 def main():
     clock = pygame.time.Clock()
+    # Skapar alla objekt för att spelet ska kunna köras
     ball = Ball(width // 2, height // 2, random.choice([-8, 8]), random.choice([-8, 8]))
     paddle1 = Paddle(30, height // 2 - 50, (68,126,190))
     paddle2 = Paddle(width - 50, height // 2 - 50, (211,71,62))
 
+    # Skapar de variabler som kommer behövas under spelets gång
     score1 = 0
     score2 = 0
 
@@ -149,6 +151,7 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
 
+        # Hanterar tangent-tryck för att kunna flytta sin Paddle
         keys = pygame.key.get_pressed()
         if keys[pygame.K_w]:
             paddle1.vy = -8
@@ -164,6 +167,7 @@ def main():
         else:
             paddle2.vy = 0
 
+        # Kollision check med bollen
         if (paddle1.x < ball.x - ball.r < paddle1.x + paddle1.width and
             paddle1.y < ball.y < paddle1.y + paddle1.height):
             ball.vx = -ball.vx
@@ -174,6 +178,7 @@ def main():
             ball.vx = -ball.vx
             ball.x = paddle2.x - ball.r
 
+        # Kollision check för "mål"
         if ball.x - ball.r <= 0:
             explosions.append(Explosion(ball.x - ball.r, ball.y, 'red'))
             score2 += 1
@@ -186,7 +191,8 @@ def main():
             trailPositions.clear()
 
         window.fill((40, 40, 41))
-
+         
+        # Hanterar bollens trail och ser till at den bara går 5 iterationer bak
         trailPositions.append((ball.x, ball.y))
         if len(trailPositions) > 5:
             trailPositions.pop(0)
@@ -198,19 +204,22 @@ def main():
             pygame.draw.circle(trail_surface, trail_color, (ball.r, ball.r), ball.r)
             window.blit(trail_surface, (pos[0] - ball.r, pos[1] - ball.r))
 
+        # Explosion effekten för toppen och botten av spel ramarna
         if ball.y + ball.r >= height:
             explosions.append(Explosion(ball.x, ball.y + ball.r, 'bottom'))
         elif ball.y - ball.r <= 0:
             explosions.append(Explosion(ball.x, ball.y - ball.r, 'top'))
 
+        # Kör objekt.draw som uppdaterar och ritar alla objekt för framen
         for explosion in explosions:
             explosion.draw(window)
         ball.draw(window)
         paddle1.draw(window)
         paddle2.draw(window)
 
-        explosions = [explosion for explosion in explosions if explosion.particles]
+        explosions = [explosion for explosion in explosions if explosion.particles] # Tar bort de explosioner som inte har några partiklar kvar
 
+        # Hanterar scoreboarden
         score_text1 = font.render(f"{score1}", True, (68,126,190))
         score_text2 = font.render(f"{score2}", True, (211,71,62))
         dash_text = font.render("-", True, WHITE)
