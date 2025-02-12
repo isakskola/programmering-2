@@ -1,10 +1,14 @@
 from socket import *
 from threading import Thread
+import random
 
 clients = []
+colors = {}
 
 def handle_client(conn, addr):
     print("En klient anslöt från adressen", addr)
+    color = "#{:06x}".format(random.randint(0, 0xFFFFFF))
+    colors[conn] = color
     while True:
         try:
             b = conn.recv(1024)
@@ -12,11 +16,12 @@ def handle_client(conn, addr):
                 break
             msg = b.decode("utf-16")
             print(f"Meddelande från {addr}: {msg}")
-            broadcast(msg, conn)
+            broadcast(f"{color},{msg}", conn)
         except:
             break
     conn.close()
     clients.remove(conn)
+    del colors[conn]
 
 def broadcast(msg, sender_conn):
     for client in clients:

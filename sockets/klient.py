@@ -15,23 +15,35 @@ def start_client():
                 if not b:
                     break
                 msg = b.decode("utf-16")
-                x1, y1, x2, y2 = map(int, msg.split(","))
-                canvas.create_line(x1, y1, x2, y2, fill="black")
+                color, coords = msg.split(",", 1)
+                coords = list(map(int, coords.split(",")))
+                canvas.create_line(*coords, fill=color, width=3)
             except:
                 break
 
     def send_line(event):
         x1, y1 = event.x, event.y
-        x2, y2 = event.x + 1, event.y + 1
+        if hasattr(send_line, 'last_x') and hasattr(send_line, 'last_y'):
+            x2, y2 = send_line.last_x, send_line.last_y
+        else:
+            x2, y2 = x1, y1
         msg = f"{x1},{y1},{x2},{y2}"
         s.send(msg.encode("utf-16"))
-        canvas.create_line(x1, y1, x2, y2, fill="black")
+        canvas.create_line(x1, y1, x2, y2, fill="black", width=3)
+        send_line.last_x, send_line.last_y = x1, y1
+
+    def reset_line(event):
+        if hasattr(send_line, 'last_x'):
+            del send_line.last_x
+        if hasattr(send_line, 'last_y'):
+            del send_line.last_y
 
     root = tk.Tk()
     root.title("Ritprogram")
     canvas = tk.Canvas(root, width=800, height=600, bg="white")
     canvas.pack()
     canvas.bind("<B1-Motion>", send_line)
+    canvas.bind("<ButtonRelease-1>", reset_line)
 
     thread = Thread(target=receive)
     thread.start()
