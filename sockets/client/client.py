@@ -9,6 +9,8 @@ SERVER_PORT = 12345
 DOT_SIZE = 20
 CANVAS_SIZE_X = 500
 CANVAS_SIZE_Y = 500
+MOVEMENT_SPEED = 3
+UPDATE_INTERVAL = 16
 
 class Client:
     def __init__(self, master):
@@ -25,8 +27,11 @@ class Client:
                                             fill=self.dot_color)
         
         self.other_client_dots = {}
-
-        self.master.bind("<KeyPress>", self.move_dot)
+        
+        self.keys_pressed = {"up": False, "down": False, "left": False, "right": False}
+        
+        self.master.bind("<KeyPress>", self.on_key_press)
+        self.master.bind("<KeyRelease>", self.on_key_release)
         self.master.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -35,23 +40,64 @@ class Client:
 
         self.send_position()
 
+        self.last_position = self.dot_position.copy()
+        self.update_movement()
+        
         threading.Thread(target=self.receive_updates, daemon=True).start()
 
     def random_color(self):
         return "#{:06x}".format(random.randint(0, 0xFFFFFF))
 
-    def move_dot(self, event):
-        if event.keysym in ('Up', 'w', 'W'):
-            self.dot_position[1] -= 5
-        elif event.keysym in ('Down', 's', 'S'):
-            self.dot_position[1] += 5
-        elif event.keysym in ('Left', 'a', 'A'):
-            self.dot_position[0] -= 5
-        elif event.keysym in ('Right', 'd', 'D'):
-            self.dot_position[0] += 5
+    def on_key_press(self, event):
+        key = event.keysym.lower()
+        if key in ('up', 'w'):
+            self.keys_pressed["up"] = True
+        elif key in ('down', 's'):
+            self.keys_pressed["down"] = True
+        elif key in ('left', 'a'):
+            self.keys_pressed["left"] = True
+        elif key in ('right', 'd'):
+            self.keys_pressed["right"] = True
 
-        self.update_dot_position()
-        self.send_position()
+    def on_key_release(self, event):
+        key = event.keysym.lower()
+        if key in ('up', 'w'):
+            self.keys_pressed["up"] = False
+        elif key in ('down', 's'):
+            self.keys_pressed["down"] = False
+        elif key in ('left', 'a'):
+            self.keys_pressed["left"] = False
+        elif key in ('right', 'd'):
+            self.keys_pressed["right"] = False
+
+    def update_movement(self):
+        if not self.running:
+            return
+            
+        moved = False
+        
+        if self.keys_pressed["up"]:
+            self.dot_position[1] = max(0, self.dot_position[1] - MOVEMENT_SPEED)
+            moved = True
+        if self.keys_pressed["down"]:
+            self.dot_position[1] = min(CANVAS_SIZE_Y - DOT_SIZE, self.dot_position[1] + MOVEMENT_SPEED)
+            moved = True
+        if self.keys_pressed["left"]:
+            self.dot_position[0] = max(0, self.dot_position[0] - MOVEMENT_SPEED)
+            moved = True
+        if self.keys_pressed["right"]:
+            self.dot_position[0] = min(CANVAS_SIZE_X - DOT_SIZE, self.dot_position[0] + MOVEMENT_SPEED)
+            moved = True
+            
+        if moved:
+            self.update_dot_position()
+            
+            if (abs(self.last_position[0] - self.dot_position[0]) > 1 or 
+                abs(self.last_position[1] - self.dot_position[1]) > 1):
+                self.send_position()
+                self.last_position = self.dot_position.copy()
+        
+        self.master.after(UPDATE_INTERVAL, self.update_movement)
 
     def update_dot_position(self):
         self.canvas.coords(self.dot, self.dot_position[0], self.dot_position[1], 
