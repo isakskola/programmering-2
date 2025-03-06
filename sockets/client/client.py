@@ -5,6 +5,7 @@ import random
 import json
 import sys
 import math
+import time
 
 SERVER_ADDRESS = 'localhost'
 SERVER_PORT = 12345
@@ -12,6 +13,7 @@ PLAYER_SIZE = 25
 CANVAS_SIZE_X = 500
 CANVAS_SIZE_Y = 500
 MOVEMENT_SPEED = 3
+SHOOT_COOLDOWN = 0.5
 
 class Client:
     def __init__(self):
@@ -26,12 +28,15 @@ class Client:
         self.rotation = 0
         self.other_clients = {}
         self.keys_pressed = {"up": False, "down": False, "left": False, "right": False}
+        self.last_shot = time.time()
+        self.projectiles = []
+        self.other_projectiles = []
         self.running = True
         
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((SERVER_ADDRESS, SERVER_PORT))
     
-        self.send_position()
+        self.send_updates()
         self.last_position = self.position.copy()
         self.last_rotation = self.rotation
         
@@ -58,6 +63,9 @@ class Client:
                     self.keys_pressed["up"] = True
                 elif event.key in (pygame.K_DOWN, pygame.K_s):
                     self.keys_pressed["down"] = True
+                elif event.key == pygame.K_SPACE:
+                    center = (self.position[0] + PLAYER_SIZE/2, self.position[1] + PLAYER_SIZE/2)
+                    self.shoot(center, PLAYER_SIZE, self.rotation)
 
             elif event.type == pygame.KEYUP:
                 if event.key in (pygame.K_UP, pygame.K_w):
@@ -98,22 +106,31 @@ class Client:
         self.position[0] = max(0, min(CANVAS_SIZE_X - PLAYER_SIZE, new_x))
         self.position[1] = max(0, min(CANVAS_SIZE_Y - PLAYER_SIZE, new_y))
         
+        for proj in self.projectiles[:]:
+            proj['position'][0] += proj['velocity'][0]
+            proj['position'][1] += proj['velocity'][1]
+            
+            if (proj['position'][0] < 0 or proj['position'][0] > CANVAS_SIZE_X or
+                proj['position'][1] < 0 or proj['position'][1] > CANVAS_SIZE_Y):
+                self.projectiles.remove(proj)
+        
         if (moved and (abs(self.last_position[0] - self.position[0]) > 1 or 
-                    abs(self.last_position[1] - self.position[1]) > 1)) or rotation_changed:
-            self.send_position()
+                    abs(self.last_position[1] - self.position[1]) > 1)) or rotation_changed or self.projectiles:
+            self.send_updates()
             self.last_position = self.position.copy()
             self.last_rotation = self.rotation
 
-    def send_position(self):
-        position_data = {
+    def send_updates(self):
+        player_data = {
             'color': self.color,
             'position': self.position,
-            'rotation': self.rotation
+            'rotation': self.rotation,
+            'projectiles': self.projectiles
         }
         try:
-            self.socket.sendall(json.dumps(position_data).encode('utf-8'))
+            self.socket.sendall(json.dumps(player_data).encode('utf-8'))
         except Exception as e:
-            print(f"Kunde inte skicka position: {e}")
+            print(f"Kunde inte skicka spelardata: {e}")
             self.running = False
 
     def receive_updates(self):
@@ -129,6 +146,7 @@ class Client:
 
     def update_other_clients(self, data):
         self.other_clients = {}
+        self.other_projectiles = []
         
         for client in data:
             client_color = client['color']
@@ -136,6 +154,11 @@ class Client:
                 position = client['position']
                 rotation = client.get('rotation', 0)
                 self.other_clients[client_color] = {'position': position, 'rotation': rotation}
+                
+                if 'projectiles' in client:
+                    for proj in client['projectiles']:
+                        proj['color'] = client_color
+                        self.other_projectiles.append(proj)
 
     def draw_player(self, color, center, size, rotation):
         x, y = center
@@ -156,9 +179,29 @@ class Client:
         
         pygame.draw.polygon(self.screen, color, [front_left, front_right, back_right, back_left])
 
+    def shoot(self, center, size, rotation):
+        if time.time() - self.last_shot < SHOOT_COOLDOWN:
+            return
+        
+        x, y = center
+        barrel_length = size
+        x += barrel_length * math.cos(rotation)
+        y += barrel_length * math.sin(rotation)
+        projectile = {
+            'position': [x, y],
+            'velocity': [math.cos(rotation) * 5, math.sin(rotation) * 5],
+            'size': size / 4
+        }
+        self.projectiles.append(projectile)
+        self.last_shot = time.time()
+        self.send_updates()
+
+    def draw_projectile(self, position, size, color):
+        pygame.draw.circle(self.screen, color, (int(position[0]), int(position[1])), int(size))
+
     def render(self):
         self.screen.fill((255, 255, 255))
-        
+
         # Rita lokala spelaren
         self.draw_player(
             self.hex_to_rgb(self.color),
@@ -166,7 +209,11 @@ class Client:
             PLAYER_SIZE,
             self.rotation
         )
-        
+
+        for proj in self.projectiles:
+            self.draw_projectile(proj['position'], proj['size'], self.hex_to_rgb(self.color))
+
+
         # Rita de andra spelarna
         for color, data in self.other_clients.items():
             position = data['position']
@@ -177,6 +224,9 @@ class Client:
                 PLAYER_SIZE,
                 rotation
             )
+        
+        for proj in self.other_projectiles:
+            self.draw_projectile(proj['position'], proj['size'], self.hex_to_rgb(proj['color']))
         
         pygame.display.flip()
 
