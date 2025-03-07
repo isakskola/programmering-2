@@ -119,6 +119,10 @@ class Client:
             self.send_updates()
             self.last_position = self.position.copy()
             self.last_rotation = self.rotation
+        
+        if self.collision_detection(self.other_projectiles, self.position, PLAYER_SIZE):
+            print("Du blev träffad av ett skott!")
+
 
     def send_updates(self):
         player_data = {
@@ -184,9 +188,9 @@ class Client:
             return
         
         x, y = center
-        barrel_length = size
-        x += barrel_length * math.cos(rotation)
-        y += barrel_length * math.sin(rotation)
+        barrel_offset = size
+        x += barrel_offset * math.cos(rotation)
+        y += barrel_offset * math.sin(rotation)
         projectile = {
             'position': [x, y],
             'velocity': [math.cos(rotation) * 5, math.sin(rotation) * 5],
@@ -195,6 +199,20 @@ class Client:
         self.projectiles.append(projectile)
         self.last_shot = time.time()
         self.send_updates()
+
+    def collision_detection(self, projectiles, position, size):
+        player_radius = size / 2
+        player_center = (position[0] + player_radius, position[1] + player_radius)
+        
+        for proj in projectiles:
+            proj_pos = proj['position']
+            proj_radius = proj['size'] / 2
+            distance = math.sqrt((proj_pos[0] - player_center[0]) ** 2 + (proj_pos[1] - player_center[1]) ** 2)
+            
+            if distance < player_radius + proj_radius:
+                return True
+        return False
+
 
     def draw_projectile(self, position, size, color):
         pygame.draw.circle(self.screen, color, (int(position[0]), int(position[1])), int(size))

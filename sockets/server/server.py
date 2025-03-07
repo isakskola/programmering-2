@@ -49,7 +49,7 @@ def broadcast_positions():
             except Exception as e:
                 print(f"Kunde inte skicka till klient {client_id}: {e}")
     except Exception as e:
-        print(f"Kunde inte skicka positioner alls: {e}")
+        print(f"Kunde inte skicka något alls (knas): {e}")
 
 def start_server():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
