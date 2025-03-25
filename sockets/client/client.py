@@ -7,6 +7,7 @@ import sys
 import math
 import time
 
+# Globala Variables
 SERVER_ADDRESS = 'localhost'
 SERVER_PORT = 12345
 PLAYER_SIZE = 25
@@ -15,6 +16,7 @@ CANVAS_SIZE_Y = 500
 MOVEMENT_SPEED = 3
 SHOOT_COOLDOWN = 0.5
 
+# Klass för den lokala spelaren
 class Player:
     def __init__(self):
         self.color = self.random_color()
@@ -28,9 +30,11 @@ class Player:
         self.score = 0
         self.hit_cooldown = 0
 
+    # Slumpar en färg för spelaren
     def random_color(self):
         return "#{:06x}".format(random.randint(0, 0xFFFFFF))
 
+    # Uppdaterar spelarens position, rotation och projektiler samt returnerar om tillståndet har ändrats
     def update_movement(self, mouse_pos):
         moved = False
         
@@ -75,6 +79,7 @@ class Player:
 
         return state_changed
     
+    # Uppdaterar spelarens skott
     def update_projectiles(self):
         for proj in self.projectiles[:]:
             proj['position'][0] += proj['velocity'][0]
@@ -84,6 +89,7 @@ class Player:
                 proj['position'][1] < 0 or proj['position'][1] > CANVAS_SIZE_Y):
                 self.projectiles.remove(proj)
     
+    # Skapar ett nytt skott
     def shoot(self):
         if time.time() - self.last_shot < SHOOT_COOLDOWN:
             return False
@@ -103,6 +109,7 @@ class Player:
         self.last_shot = time.time()
         return True
     
+    # Kollar om spelaren har kolliderat med något skott
     def collision_detection(self, projectiles):
         player_radius = PLAYER_SIZE / 2
         player_center = (self.position[0] + player_radius, self.position[1] + player_radius)
@@ -116,6 +123,7 @@ class Player:
                 return True
         return False
     
+    # Returnerar spelarens data
     def get_data(self):
         return {
             'color': self.color,
@@ -134,10 +142,12 @@ class Canvas:
         self.clock = pygame.time.Clock()
         self.font = pygame.font.SysFont('Arial', 16)
     
+    # Konverterar hexadecimalfärg till RGB
     def hex_to_rgb(self, hex_color):
         hex_color = hex_color.lstrip('#')
         return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
     
+    # Ritar en spelare
     def draw_player(self, color, center, size, rotation):
         color_rgb = self.hex_to_rgb(color) if isinstance(color, str) else color
         x, y = center
@@ -158,13 +168,16 @@ class Canvas:
         
         pygame.draw.polygon(self.screen, color_rgb, [front_left, front_right, back_right, back_left])
 
+    # Ritar ett skott
     def draw_projectile(self, position, size, color):
         color_rgb = self.hex_to_rgb(color) if isinstance(color, str) else color
         pygame.draw.circle(self.screen, color_rgb, (int(position[0]), int(position[1])), int(size))
 
+    # Ritar allt på spelplanen
     def render(self, player, other_clients, other_projectiles):
         self.screen.fill((255, 255, 255))
 
+        # Lokala spelaren
         self.draw_player(
             player.color,
             (player.position[0] + PLAYER_SIZE/2, player.position[1] + PLAYER_SIZE/2),
@@ -175,6 +188,7 @@ class Canvas:
         for proj in player.projectiles:
             self.draw_projectile(proj['position'], proj['size'], player.color)
 
+        # Andra spelare
         for color, data in other_clients.items():
             position = data['position']
             rotation = data['rotation']
@@ -192,6 +206,7 @@ class Canvas:
         
         pygame.display.flip()
     
+    # Ritar leaderboard
     def draw_leaderboard(self, player, other_clients):
         leaderboard = [(player.color, player.score)]
         for color, data in other_clients.items():
@@ -220,7 +235,7 @@ class Canvas:
     def tick(self, fps):
         return self.clock.tick(fps)
 
-
+# Klass för klienten
 class Client:
     def __init__(self):
         self.player = Player()
@@ -237,6 +252,7 @@ class Client:
         
         threading.Thread(target=self.receive_updates, daemon=True).start()
 
+    # Hanterar händelser tangentbordstryck och quit
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -260,6 +276,7 @@ class Client:
                 elif event.key in (pygame.K_DOWN, pygame.K_s):
                     self.player.keys_pressed["down"] = False
 
+    # Skickar uppdateringar till servern
     def send_updates(self):
         try:
             player_data = self.player.get_data()
@@ -268,6 +285,7 @@ class Client:
             print(f"Kunde inte skicka spelardata: {e}")
             self.running = False
 
+    # Tar emot uppdateringar från servern
     def receive_updates(self):
         while self.running:
             try:
@@ -279,6 +297,7 @@ class Client:
                 print(f"Kunde inte hämta uppdatering: {e}")
                 break
 
+    # Uppdaterar de andra spelarna
     def update_other_clients(self, data):
         self.other_clients = {}
         self.other_projectiles = []
@@ -300,6 +319,7 @@ class Client:
                         proj['color'] = client_color
                         self.other_projectiles.append(proj)
 
+    # Uppdaterar spelaren och hanterar kollisioner med skott
     def update(self):
         state_changed = self.player.update_movement(pygame.mouse.get_pos())
         
@@ -321,6 +341,7 @@ class Client:
         if state_changed:
             self.send_updates()
 
+    # Main loopen
     def run(self):
         while self.running:
             self.handle_events()
