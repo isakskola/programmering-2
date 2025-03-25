@@ -25,6 +25,8 @@ class Player:
         self.last_shot = time.time()
         self.projectiles = []
         self.last_position = self.position.copy()
+        self.score = 0
+        self.hit_cooldown = 0
 
     def random_color(self):
         return "#{:06x}".format(random.randint(0, 0xFFFFFF))
@@ -119,7 +121,8 @@ class Player:
             'color': self.color,
             'position': self.position,
             'rotation': self.rotation,
-            'projectiles': self.projectiles
+            'projectiles': self.projectiles,
+            'score': self.score
         }
 
 
@@ -129,6 +132,7 @@ class Canvas:
         pygame.display.set_caption("Socket Spel Klient")
         self.screen = pygame.display.set_mode((CANVAS_SIZE_X, CANVAS_SIZE_Y))
         self.clock = pygame.time.Clock()
+        self.font = pygame.font.SysFont('Arial', 16)
     
     def hex_to_rgb(self, hex_color):
         hex_color = hex_color.lstrip('#')
@@ -184,7 +188,34 @@ class Canvas:
         for proj in other_projectiles:
             self.draw_projectile(proj['position'], proj['size'], proj['color'])
         
+        self.draw_leaderboard(player, other_clients)
+        
         pygame.display.flip()
+    
+    def draw_leaderboard(self, player, other_clients):
+        leaderboard = [(player.color, player.score)]
+        for color, data in other_clients.items():
+            if 'score' in data:
+                leaderboard.append((color, data['score']))
+        
+        leaderboard.sort(key=lambda x: x[1], reverse=True)
+        
+        pygame.draw.rect(self.screen, (240, 240, 240), (10, 10, 150, 30 + 20 * len(leaderboard)))
+        pygame.draw.rect(self.screen, (200, 200, 200), (10, 10, 150, 30 + 20 * len(leaderboard)), 2)
+        
+        title = self.font.render("Leaderboard", True, (0, 0, 0))
+        self.screen.blit(title, (15, 15))
+        
+        for i, (color, score) in enumerate(leaderboard):
+            color_rgb = self.hex_to_rgb(color) if isinstance(color, str) else color
+            pygame.draw.rect(self.screen, color_rgb, (15, 40 + i * 20, 15, 15))
+            
+            text_color = (0, 0, 0)
+            if color == player.color:
+                text_color = (0, 100, 0)
+                
+            score_text = self.font.render(f": {score} pts", True, text_color)
+            self.screen.blit(score_text, (35, 40 + i * 20))
     
     def tick(self, fps):
         return self.clock.tick(fps)
@@ -197,6 +228,7 @@ class Client:
         self.other_clients = {}
         self.other_projectiles = []
         self.running = True
+        self.hit_players = set()
         
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((SERVER_ADDRESS, SERVER_PORT))
@@ -256,7 +288,12 @@ class Client:
             if client_color != self.player.color:
                 position = client['position']
                 rotation = client.get('rotation', 0)
-                self.other_clients[client_color] = {'position': position, 'rotation': rotation}
+                score = client.get('score', 0)
+                self.other_clients[client_color] = {
+                    'position': position, 
+                    'rotation': rotation,
+                    'score': score
+                }
                 
                 if 'projectiles' in client:
                     for proj in client['projectiles']:
@@ -266,8 +303,20 @@ class Client:
     def update(self):
         state_changed = self.player.update_movement(pygame.mouse.get_pos())
         
-        if self.player.collision_detection(self.other_projectiles):
-            print("Du blev träffad av ett skott!")
+        for client_color, client_data in self.other_clients.items():
+            client_pos = client_data['position']
+            client_center = (client_pos[0] + PLAYER_SIZE/2, client_pos[1] + PLAYER_SIZE/2)
+            
+            for proj in self.player.projectiles[:]:
+                proj_pos = proj['position']
+                proj_radius = proj['size'] / 2
+                distance = math.sqrt((proj_pos[0] - client_center[0])**2 + (proj_pos[1] - client_center[1])**2)
+                
+                if distance < (PLAYER_SIZE/2 + proj_radius):
+                    self.player.score += 1
+                    self.player.projectiles.remove(proj)
+                    state_changed = True
+                    break
             
         if state_changed:
             self.send_updates()
