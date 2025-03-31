@@ -4,7 +4,7 @@ CREATE TABLE Users (
     email VARCHAR(100) UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    role VARCHAR(9) CHECK (role IN ('admin', 'moderator', 'user')) NOT NULL
+    role ENUM('admin', 'moderator', 'user') NOT NULL
 );
 
 CREATE TABLE Threads (
@@ -26,7 +26,7 @@ CREATE TABLE Posts (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (thread_id) REFERENCES Threads(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE,
-    FOREIGN KEY (reply_id) REFERENCES Posts(id) ON DELETE CASCADE
+    FOREIGN KEY (reply_id) REFERENCES Posts(id) ON DELETE SET NULL
 );
 
 CREATE TABLE PrivateMessages (
