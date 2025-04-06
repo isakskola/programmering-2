@@ -6,20 +6,22 @@ from ui.components.BaseComponent import BaseComponent
 
 class AuthenticationFrame(BaseComponent):
     def __init__(self, parent, on_login_success):
-        self.on_login_success = on_login_success
-        self.current_frame = None
-        super().__init__(parent)
+        self.on_login_success = on_login_success # För att kunna anropas när användaren loggar in
+        super().__init__(parent) # Anropar init-metoden för BaseComponent
     
+    # Validerar användarnamnet
     def validate_username(self, username):
         if not username or len(username) < 3 or len(username) > 30:
             return False, "Användarnamnet måste vara mellan 3 och 30 tecken"
         return True, None
 
+    # Validerar lösenordet
     def validate_password(self, password):
         if not password or len(password) < 8:
             return False, "Lösenord måste vara minst 8 tecken långt"
         return True, None
 
+    # Validerar mail-adressen
     def validate_email(self, email):
         if not email:
             return False, "Email krävs"
@@ -28,11 +30,13 @@ class AuthenticationFrame(BaseComponent):
             return False, "Ogiltigt emailformat"
         return True, None
 
+    # Skapar UI
     def setup_ui(self):
         self.container = ttk.Frame(self)
         self.container.pack(expand=True)
         self.show_login()
 
+    # Skapar inloggningsskärmen
     def show_login(self):
         self.clear_widgets(self.container)
 
@@ -50,6 +54,7 @@ class AuthenticationFrame(BaseComponent):
         ttk.Button(self.container, text="Logga in", command=self.login).grid(row=3, column=0, columnspan=2, pady=10)
         ttk.Button(self.container, text="Registrera dig", command=self.show_register).grid(row=4, column=0, columnspan=2)
 
+    # Skapar registreringsskärmen
     def show_register(self):
         self.clear_widgets(self.container)
 
@@ -71,11 +76,13 @@ class AuthenticationFrame(BaseComponent):
         ttk.Button(self.container, text="Registrera dig", command=self.register).grid(row=4, column=0, columnspan=2, pady=10)
         ttk.Button(self.container, text="Tillbaka till inloggning", command=self.show_login).grid(row=5, column=0, columnspan=2)
 
+    # Kallas när användaren klickar på inloggningsknappen
     def login(self):
         username = self.username_var.get()
         password = self.password_var.get()
 
         try:
+            # Skickar in användarnamn och lösenord till servern 
             response = requests.post('http://localhost:5000/api/auth/login', json={'username': username, 'password': password})
             response_data = response.json()
             if response.status_code == 200:
@@ -85,15 +92,18 @@ class AuthenticationFrame(BaseComponent):
         except Exception as e:
             self.show_dialog("Fel", f"Anslutningsfel: {str(e)}")
 
+    # Kallas när användaren klickar på registreringsknappen
     def register(self):
         username = self.username_var.get()
         email = self.email_var.get()
         password = self.password_var.get()
 
+        # Validerar datan
         username_valid, username_error = self.validate_username(username)
         email_valid, email_error = self.validate_email(email)
         password_valid, password_error = self.validate_password(password)
         
+        # Om datan inte är korrekt så visas ett felmeddelande
         if not username_valid:
             self.show_dialog("Fel", username_error)
             return
@@ -105,6 +115,7 @@ class AuthenticationFrame(BaseComponent):
             return
 
         try:
+            # Skickar in datan till servern
             response = requests.post('http://localhost:5000/api/auth/register', json={'username': username, 'email': email, 'password': password})
             if response.status_code == 200:
                 self.show_dialog("Info", "Registrering lyckades!")

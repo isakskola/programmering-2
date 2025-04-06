@@ -11,7 +11,7 @@ class App(tk.Tk):
         self.title("Forum")
         self.geometry("1200x800")
         
-        # Initierar current_user till None
+        # Initierar current_user till None för att senare kunna använda det
         self.current_user = None
         self.setup_ui()
 
@@ -27,7 +27,7 @@ class App(tk.Tk):
         # Skapar en instans av AuthenticationFrame och packar den i huvudprogrammet och anropar on_login_success när användaren loggar in
         AuthenticationFrame(self, self.on_login_success).pack(expand=True, fill=tk.BOTH)
 
-    # Anropar när användaren loggar in
+    # Anropas när användaren loggar in från AuthenticationFrame
     def on_login_success(self, user_data):
         self.current_user = user_data
         self.show_main_screen()

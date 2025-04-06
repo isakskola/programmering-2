@@ -2,12 +2,12 @@ import tkinter as tk
 from tkinter import ttk
 import requests
 from ui.components.BaseComponent import BaseComponent
+from ui.components.WebSocketManager import WebSocketManager
 
 # Klass för skärmen som visas när man skapar en tråd, ärver från BaseComponent som är en grundklass för komponenter
 class CreateThreadOverlay(BaseComponent):
-    def __init__(self, parent, user_id, on_thread_created):
+    def __init__(self, parent, user_id):
         self.user_id = user_id
-        self.on_thread_created = on_thread_created
         super().__init__(parent)
     
     def setup_ui(self):
@@ -46,7 +46,6 @@ class CreateThreadOverlay(BaseComponent):
             if response.status_code == 200:
                 self.close()
                 self.parent.show_dialog("Info", "Tråd skapad!")
-                self.on_thread_created()
             else:
                 response_data = response.json()
                 self.parent.show_dialog("Fel", response_data.get('message', 'Ett fel uppstod'))
@@ -58,10 +57,12 @@ class CreateThreadOverlay(BaseComponent):
 
 # Klass för att hantera trådar, ärver från BaseComponent som är en grundklass för komponenter
 class ThreadManager(BaseComponent):
-    def __init__(self, parent, current_user):
+    def __init__(self, parent, current_user, ws_manager):
         self.current_user = current_user
         self.threads = []
+        self.ws_manager = ws_manager  # Use the WebSocketManager from MainFrame
         super().__init__(parent)
+        
         self.load_threads() # Kallar på load_threads för att ladda trådarna när direkt komponenten skapas
     
     # Skapar layouten för trådkomponenten
@@ -91,11 +92,24 @@ class ThreadManager(BaseComponent):
         except Exception as e:
             self.show_dialog("Fel", f"Ett fel uppstod: {str(e)}")
 
+    # Callback-funktioner för socket-hantering - kallas när en ny tråd skapas eller tas bort
+    def handle_new_thread(self, thread):
+        self.threads.append(thread) # Lägger till tråden i listan
+        self.update_threads_list() # Uppdaterar trådlistan
+
+    def handle_thread_deleted(self, thread_id):
+        self.threads = [t for t in self.threads if t['id'] != thread_id] # Tar bort tråden från listan
+        self.update_threads_list() # Uppdaterar trådlistan
+
     # Uppdatera trådlistan
     def update_threads_list(self):
         self.clear_widgets(self.content_threads_frame)
-
-        for thread in self.threads:
+        
+        # Sortera trådarna efter senast aktiv i fallande ordning
+        sorted_threads = sorted(self.threads, key=lambda x: x['last_activity'], reverse=True)
+        
+        # Går igenom alla trådar och ritar ut dem på skärmen
+        for thread in sorted_threads:
             thread_frame = tk.Frame(self.content_threads_frame, bg='white', relief=tk.RAISED, borderwidth=1)
             thread_frame.pack(fill=tk.X, padx=5, pady=5)
             
@@ -108,13 +122,14 @@ class ThreadManager(BaseComponent):
             date_label = tk.Label(thread_frame, text=f"Senast aktiv: {thread['last_activity']}", fg='gray', bg='white')
             date_label.pack(side=tk.RIGHT, padx=10, pady=5)
             
+            # Om användaren är skapare av tråden eller är admin eller moderator så kan den ta bort tråden
             if (thread['creator'] == self.current_user['username']) or (self.current_user['role'] == 'admin') or (self.current_user['role'] == 'moderator'):
                 delete_button = tk.Button(thread_frame, text="Ta bort", command=lambda t=thread: self.delete_thread(t), bg='#f44336', fg='white')
                 delete_button.pack(side=tk.RIGHT, padx=10, pady=5)
     
     # Skapa en tråd
     def create_thread(self):
-        CreateThreadOverlay(self, self.current_user['id'], self.load_threads)
+        CreateThreadOverlay(self, self.current_user['id'])
     
     # Ta bort en tråd
     def delete_thread(self, thread):
@@ -122,7 +137,6 @@ class ThreadManager(BaseComponent):
             response = requests.delete(f'http://localhost:5000/api/threads/{thread["id"]}', json={'user_id': self.current_user['id'], 'role': self.current_user['role']})
             if response.status_code == 200:
                 self.show_dialog("Info", "Tråd borttagen!")
-                self.load_threads()
             else:
                 response_data = response.json()
                 self.show_dialog("Fel", response_data.get('message', 'Ett fel uppstod'))

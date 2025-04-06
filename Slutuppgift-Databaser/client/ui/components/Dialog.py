@@ -9,15 +9,16 @@ class Dialog(tk.Toplevel):
         self.title(title)
         self.geometry(f"{width}x{height}")
         self.resizable(False, False)
-        self.setup_ui()
+        self.setup_ui() # Anropar setup_ui för att skapa dialogrutan
         self.center_window()
         
+        # Logik för att dialogrutan ska vara över parent-fönstret
         self.transient(parent)
         self.grab_set()
         self.focus_set()
         self.attributes('-topmost', True) 
     
-    # Template för att skapa dialogrutor
+    # Template för att skapa dialogrutor, ska överlappas i subklasser
     def setup_ui(self):
         pass
     

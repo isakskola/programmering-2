@@ -103,6 +103,45 @@ class Thread:
         finally:
             cursor.close()
             conn.close()
+    
+    # Hämta en specifik tråd, static metod för att kunna användas utan att skapa en instans av klassen
+    @staticmethod
+    def get_last_created():
+        conn = get_database_connection()
+        if not conn:
+            return False, "Databasanslutning misslyckades"
+        
+        try:
+            cursor = conn.cursor(dictionary=True)
+            # Hämta den senaste tråden genom att sortera efter id i fallande ordning och
+            # hämta namnet på skaparen genom att joina ihop tabellerna Threads och Users med hjälp av användarens id
+            cursor.execute("""
+                SELECT Threads.*, Users.username as creator_name 
+                FROM Threads
+                JOIN Users ON Threads.user_id = Users.id
+                ORDER BY Threads.id DESC
+                LIMIT 1
+            """)
+            thread = cursor.fetchone()
+            
+            # Ifall något går fel så returneras False och ett felmeddelande
+            if not thread:
+                return False, "Inga trådar hittades"
+            
+            return True, {
+                'id': thread['id'],
+                'title': thread['title'],
+                'creator': thread['creator_name'],
+                'last_activity': thread['last_activity'].strftime('%Y-%m-%d %H:%M:%S'),
+                'created_at': thread['created_at'].strftime('%Y-%m-%d %H:%M:%S')
+            }
+        except Exception as e:
+            print(f"Misslyckades att hämta tråd: {e}")
+            return False, "Ett fel uppstod vid hämtningen av tråden"
+        finally:
+            cursor.close()
+            conn.close()
+            
 
     # Skapa en ny tråd, static metod för att kunna användas utan att skapa en instans av klassen
     @staticmethod

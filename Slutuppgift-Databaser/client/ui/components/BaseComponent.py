@@ -8,7 +8,7 @@ class BaseComponent(ttk.Frame):
         self.parent = parent
         self.setup_ui() # Anropar setup_ui vid skapandet av komponenten
     
-    # Tom funktion för att den blir överskriven i subklasser för att skapa unika komponenter med samma struktur
+    # Template för att skapa komponenter, ska överlappas i subklasser
     def setup_ui(self):
         pass
     
