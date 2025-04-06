@@ -1,6 +1,7 @@
 import mysql.connector
 from mysql.connector import Error
 
+# Funktion för att ansluta till databasen för att slippa upprepning
 def get_database_connection():
     try:
         connection = mysql.connector.connect(

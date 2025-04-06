@@ -1,14 +1,14 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk
 import requests
 import re
+from ui.components.BaseComponent import BaseComponent
 
-class AuthenticationFrame(ttk.Frame):
+class AuthenticationFrame(BaseComponent):
     def __init__(self, parent, on_login_success):
-        super().__init__(parent)
         self.on_login_success = on_login_success
         self.current_frame = None
-        self.setup_ui()
+        super().__init__(parent)
     
     def validate_username(self, username):
         if not username or len(username) < 3 or len(username) > 30:
@@ -34,8 +34,7 @@ class AuthenticationFrame(ttk.Frame):
         self.show_login()
 
     def show_login(self):
-        for widget in self.container.winfo_children():
-            widget.destroy()
+        self.clear_widgets(self.container)
 
         title_label = ttk.Label(self.container, text="Logga in", font=('Helvetica', 16, 'bold'))
         title_label.grid(row=0, column=0, columnspan=2, pady=(0, 20))
@@ -52,8 +51,7 @@ class AuthenticationFrame(ttk.Frame):
         ttk.Button(self.container, text="Registrera dig", command=self.show_register).grid(row=4, column=0, columnspan=2)
 
     def show_register(self):
-        for widget in self.container.winfo_children():
-            widget.destroy()
+        self.clear_widgets(self.container)
 
         title_label = ttk.Label(self.container, text="Registrera dig", font=('Helvetica', 16, 'bold'))
         title_label.grid(row=0, column=0, columnspan=2, pady=(0, 20))
@@ -78,16 +76,14 @@ class AuthenticationFrame(ttk.Frame):
         password = self.password_var.get()
 
         try:
-            response = requests.post('http://localhost:5000/api/auth/login', 
-                                  json={'username': username, 'password': password})
-            
+            response = requests.post('http://localhost:5000/api/auth/login', json={'username': username, 'password': password})
+            response_data = response.json()
             if response.status_code == 200:
-                user_data = response.json()
-                self.on_login_success(user_data)
+                self.on_login_success(response_data)
             else:
-                messagebox.showerror("Error", response.json().get('error', 'Inloggning misslyckades'))
+                self.show_dialog("Fel", response_data.get('message', 'Inloggning misslyckades'))
         except Exception as e:
-            messagebox.showerror("Error", f"Anslutningsfel: {str(e)}")
+            self.show_dialog("Fel", f"Anslutningsfel: {str(e)}")
 
     def register(self):
         username = self.username_var.get()
@@ -95,35 +91,26 @@ class AuthenticationFrame(ttk.Frame):
         password = self.password_var.get()
 
         username_valid, username_error = self.validate_username(username)
-        if not username_valid:
-            messagebox.showerror("Error", username_error)
-            return
-
         email_valid, email_error = self.validate_email(email)
-        if not email_valid:
-            messagebox.showerror("Error", email_error)
-            return
-
         password_valid, password_error = self.validate_password(password)
+        
+        if not username_valid:
+            self.show_dialog("Fel", username_error)
+            return
+        if not email_valid:
+            self.show_dialog("Fel", email_error)
+            return
         if not password_valid:
-            messagebox.showerror("Error", password_error)
+            self.show_dialog("Fel", password_error)
             return
 
         try:
-            response = requests.post('http://localhost:5000/api/auth/register',
-                                  json={'username': username, 'email': email, 'password': password})
-            
+            response = requests.post('http://localhost:5000/api/auth/register', json={'username': username, 'email': email, 'password': password})
             if response.status_code == 200:
-                data = response.json()
-                if isinstance(data, dict):
-                    if data.get('success', False):
-                        messagebox.showinfo("Success", data.get('message', 'Registrering lyckades!'))
-                        self.show_login()
-                    else:
-                        messagebox.showerror("Error", data.get('message', 'Registrering misslyckades'))
-                else:
-                    messagebox.showerror("Error", "Ogiltigt svar från servern")
+                self.show_dialog("Info", "Registrering lyckades!")
+                self.show_login()
             else:
-                messagebox.showerror("Error", response.json().get('message', 'Registrering misslyckades'))
+                response_data = response.json()
+                self.show_dialog("Fel", response_data.get('message', 'Registrering misslyckades'))
         except Exception as e:
-            messagebox.showerror("Error", f"Anslutningsfel: {str(e)}")
+            self.show_dialog("Fel", f"Anslutningsfel: {str(e)}")

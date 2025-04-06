@@ -1,26 +1,28 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
-import requests
+from tkinter import ttk
+from ui.components.BaseComponent import BaseComponent
+from ui.components.ThreadManager import ThreadManager
 
-class MainFrame(ttk.Frame):
+# Huvudskärmen för inloggade användare på forumet, ärver från BaseComponent som är en grundklass för komponenter
+class MainFrame(BaseComponent):
     def __init__(self, parent, current_user):
-        super().__init__(parent)
         self.current_user = current_user
-        self.setup_ui()
+        super().__init__(parent) # Anropar init-metoden för BaseComponent
     
     def setup_ui(self):
-        main_frame = tk.Frame(self, bg='gray')
+        main_frame = tk.Frame(self, bg='#f0f0f0')
         main_frame.pack(fill=tk.BOTH, expand=True)
 
-        header_frame = tk.Frame(main_frame)
-        header_frame.pack(fill=tk.X, padx=5, pady=5)
+        # Header_frame för att förenkla strukturen
+        header_frame = tk.Frame(main_frame, bg='#f0f0f0')
+        header_frame.pack(fill=tk.X, padx=10, pady=10)
 
-        tk.Label(header_frame, text=f"Välkomen, {self.current_user['username']}!", fg='black').pack(side=tk.LEFT)
-        tk.Button(header_frame, text="Logga ut", command=self.master.logout(), fg='black').pack(side=tk.RIGHT)
+        # Skapar en label för att visa användarens namn och en knapp för att logga ut
+        tk.Label(header_frame, text=f"Välkommen, {self.current_user['username']}!", 
+                fg='black', bg='#f0f0f0', font=('Helvetica', 12, 'bold')).pack(side=tk.LEFT)
+        tk.Button(header_frame, text="Logga ut", command=self.master.logout, 
+                 bg='#f44336', fg='white').pack(side=tk.RIGHT)
 
-        content_frame = tk.Frame(main_frame)
-        content_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-
-        tk.Label(content_frame, text="test", fg='black').pack()
-
-        
+        # Skapar en instans av ThreadManager och packar den i main_frame
+        self.thread_manager = ThreadManager(main_frame, self.current_user)
+        self.thread_manager.pack(fill=tk.BOTH, expand=True, padx=10, pady=10) 
