@@ -73,12 +73,48 @@ class ThreadManager(BaseComponent):
         content_header_frame = tk.Frame(self.container, bg='#f0f0f0')
         content_header_frame.pack(fill=tk.X, padx=5, pady=5)
 
-        self.content_threads_frame = tk.Frame(self.container, bg='#f0f0f0')
-        self.content_threads_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        # Skapar en frame för att hålla i canvasen och scrollbaren
+        self.scroll_container = tk.Frame(self.container, bg='#f0f0f0')
+        self.scroll_container.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        # Skapar en canvas med scrollbar
+        self.canvas = tk.Canvas(self.scroll_container, bg='#f0f0f0', highlightthickness=0)
+        self.scrollbar = ttk.Scrollbar(self.scroll_container, orient="vertical", command=self.canvas.yview)
+        
+        # Skapar en frame för att hålla i trådarna i canvasen
+        self.content_threads_frame = tk.Frame(self.canvas, bg='#f0f0f0')
+        
+        # Konfigurerar canvasen för att scrolla
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        
+        # Packar scrollbaren och canvasen
+        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        # Skapar ett fönster i canvasen för att hålla i trådarna
+        self.canvas_frame = self.canvas.create_window((0, 0), window=self.content_threads_frame, anchor="nw", width=self.canvas.winfo_reqwidth())
+        
+        # Konfigurerar canvasen för att expandera med fönstret
+        self.content_threads_frame.bind("<Configure>", self.on_frame_configure)
+        self.canvas.bind("<Configure>", self.on_canvas_configure)
+        
+        # Bindar skroll hjulet till scrollning
+        self.canvas.bind_all("<MouseWheel>", self.on_mousewheel)
 
         tk.Label(content_header_frame, text="Trådar", fg='black', bg='#f0f0f0', font=('Helvetica', 20, 'bold')).pack(side=tk.LEFT)
         tk.Button(content_header_frame, text="Skapa tråd", command=self.create_thread, bg='#2196F3', fg='white').pack(side=tk.RIGHT)
     
+    # Event hanterare
+    def on_frame_configure(self, event=None):
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+    
+    def on_canvas_configure(self, event): # När canvasen ändrar bredd så uppdateras bredden på trådarna
+        width = event.width
+        self.canvas.itemconfig(self.canvas_frame, width=width)
+    
+    def on_mousewheel(self, event):
+        self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+
     # Ladda trådarna
     def load_threads(self):
         try:
