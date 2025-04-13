@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
-from models import User, Thread
+from models import User, Thread, Post
 
 app = Flask(__name__)
 CORS(app)
@@ -77,6 +77,31 @@ def delete_thread(thread_id):
     if success:
         # Skicka till alla klienter att en tråd har tagits bort
         socketio.emit('thread_deleted', {'thread_id': thread_id})
+        return '', 200
+    return jsonify({'message': message}), 400
+
+# Hämta alla posts för en specifik tråd
+@app.route('/api/threads/<int:thread_id>/posts', methods=['GET'])
+def get_thread_posts(thread_id):
+    success, posts = Post.get_thread_posts(thread_id)
+    if success:
+        return jsonify({'posts': posts}), 200
+    return jsonify({'message': 'Kunde inte hämta inlägg'}), 500
+
+# Skapa en ny post
+@app.route('/api/threads/<int:thread_id>/posts', methods=['POST'])
+def create_post(thread_id):
+    data = request.get_json()
+    content = data.get('content')
+    user_id = data.get('user_id')
+
+    success, message = Post.create(content, thread_id, user_id)
+    if success:
+        # Hämta den senaste posten och skicka till alla klienter
+        success, posts = Post.get_thread_posts(thread_id)
+        if success and posts:
+            latest_post = posts[-1] # hämta den senaste posten (det vi just skapade)
+            socketio.emit('new_post', {'post': latest_post, 'thread_id': thread_id})
         return '', 200
     return jsonify({'message': message}), 400
 

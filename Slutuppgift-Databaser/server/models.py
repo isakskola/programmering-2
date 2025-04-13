@@ -196,5 +196,66 @@ class Thread:
             cursor.close()
             conn.close()
             
+class Post:
+    def __init__(self, id, thread_id, user_id, content, created_at):
+        self.id = id
+        self.thread_id = thread_id
+        self.user_id = user_id
+        self.content = content
+        self.created_at = created_at
+        
+    @staticmethod
+    def get_thread_posts(thread_id):
+        conn = get_database_connection()
+        if not conn:
+            return False, []
+
+        try:
+            cursor = conn.cursor(dictionary=True)
+
+            cursor.execute("""
+                SELECT Posts.*, Users.username as creator_name 
+                FROM Posts
+                JOIN Users ON Posts.user_id = Users.id
+                WHERE Posts.thread_id = %s
+                ORDER BY Posts.created_at ASC
+            """, (thread_id,))
+            posts = cursor.fetchall()
+            return True, [{
+                'id': post['id'],
+                'thread_id': post['thread_id'],
+                'content': post['content'],
+                'creator': post['creator_name'],
+                'created_at': post['created_at'].strftime('%Y-%m-%d %H:%M:%S')
+            } for post in posts]
+
+        except Exception as e:
+            print(f"Misslyckades att hämta posts: {e}")
+            return False, []
+        finally:
+            cursor.close()
+            conn.close()
+            
+    @staticmethod
+    def create(content, thread_id, user_id):
+        conn = get_database_connection()
+        if not conn:
+            return False, "Databasanslutning misslyckades"
+        
+        try:
+            cursor = conn.cursor()
+            
+            cursor.execute(
+                "INSERT INTO Posts (content, thread_id, user_id) VALUES (%s, %s, %s)", 
+                (content, thread_id, user_id)
+            )
+            conn.commit()
+            return True, ''
+        except Exception as e:
+            print(f"Misslyckades att skapa inlägg: {e}")
+            return False, "Ett fel uppstod vid skapandet av inlägget"
+        finally:
+            cursor.close()
+            conn.close()
             
             
