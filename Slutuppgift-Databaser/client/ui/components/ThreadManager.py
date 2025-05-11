@@ -2,7 +2,6 @@ import tkinter as tk
 from tkinter import ttk
 import requests
 from ui.components.BaseComponent import BaseComponent
-from ui.components.WebSocketManager import WebSocketManager
 
 # Klass för skärmen som visas när man skapar en tråd, ärver från BaseComponent som är en grundklass för komponenter
 class CreateThreadOverlay(BaseComponent):
@@ -57,10 +56,11 @@ class CreateThreadOverlay(BaseComponent):
 
 # Klass för att hantera trådar, ärver från BaseComponent som är en grundklass för komponenter
 class ThreadManager(BaseComponent):
-    def __init__(self, parent, current_user, ws_manager):
+    def __init__(self, parent, current_user, ws_manager, on_open_thread):
         self.current_user = current_user
         self.threads = []
-        self.ws_manager = ws_manager  # Use the WebSocketManager from MainFrame
+        self.ws_manager = ws_manager
+        self.on_open_thread = on_open_thread
         super().__init__(parent)
         
         self.load_threads() # Kallar på load_threads för att ladda trådarna när direkt komponenten skapas
@@ -149,7 +149,7 @@ class ThreadManager(BaseComponent):
             thread_frame = tk.Frame(self.content_threads_frame, bg='white', relief=tk.RAISED, borderwidth=1)
             thread_frame.pack(fill=tk.X, padx=5, pady=5)
             
-            title_label = tk.Label(thread_frame, text=thread['title'], fg='black', bg='white', font=('Helvetica', 12, 'bold'))
+            title_label = tk.Label(thread_frame, text=thread['title'], bg='white', font=('Helvetica', 12, 'bold'))
             title_label.pack(side=tk.LEFT, padx=10, pady=5)
             
             creator_label = tk.Label(thread_frame, text=f"Skapad av: {thread['creator']}", fg='gray', bg='white')
@@ -157,6 +157,11 @@ class ThreadManager(BaseComponent):
             
             date_label = tk.Label(thread_frame, text=f"Senast aktiv: {thread['last_activity']}", fg='gray', bg='white')
             date_label.pack(side=tk.RIGHT, padx=10, pady=5)
+            
+            # "Visa" knapp för att öppna tråden
+            view_button = tk.Button(thread_frame, text="Visa", command=lambda t=thread: self.open_thread_view(t), 
+                                   bg='#2196F3', fg='white')
+            view_button.pack(side=tk.RIGHT, padx=10, pady=5)
             
             # Om användaren är skapare av tråden eller är admin eller moderator så kan den ta bort tråden
             if (thread['creator'] == self.current_user['username']) or (self.current_user['role'] == 'admin') or (self.current_user['role'] == 'moderator'):
@@ -166,6 +171,10 @@ class ThreadManager(BaseComponent):
     # Skapa en tråd
     def create_thread(self):
         CreateThreadOverlay(self, self.current_user['id'])
+
+    def open_thread_view(self, thread):
+        if self.on_open_thread:
+            self.on_open_thread(thread['id'], thread['title'])
     
     # Ta bort en tråd
     def delete_thread(self, thread):
